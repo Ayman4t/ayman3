@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#070913">
+<title>Quantum Board - مساحة العمل العابرة للشاشات | AymanStack</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070913;--cyan:#00f3ff;--violet:#a855f7;--green:#10b981;--gold:#fbbf24;--text:#e6f1ff;--muted:#8791b5;--glass:rgba(16,20,46,.66)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Cairo','Segoe UI',Tahoma,sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+body{background:
+ radial-gradient(ellipse at 50% 0%,rgba(168,85,247,.14),transparent 60%),
+ linear-gradient(rgba(0,243,255,.09) 1px,transparent 1px) 0 0/200px 200px,
+ linear-gradient(90deg,rgba(0,243,255,.09) 1px,transparent 1px) 0 0/200px 200px,
+ linear-gradient(rgba(0,243,255,.04) 1px,transparent 1px) 0 0/40px 40px,
+ linear-gradient(90deg,rgba(0,243,255,.04) 1px,transparent 1px) 0 0/40px 40px,var(--bg)}
+#board{position:fixed;inset:0;z-index:10;overflow:hidden}
+#hint{position:fixed;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);line-height:2;padding:0 40px;pointer-events:none;transition:opacity .4s}
+#hint.off{opacity:0}
+#fx{position:fixed;inset:0;width:100%;height:100%;z-index:15;pointer-events:none}
+#portal{position:fixed;top:0;bottom:0;width:90px;z-index:12;pointer-events:none;opacity:0}
+#portal.r{right:0;background:linear-gradient(to left,rgba(0,243,255,.55),rgba(168,85,247,.18) 45%,transparent);border-right:3px solid var(--cyan);box-shadow:0 0 calc(18px + 40px*var(--i,0)) rgba(0,243,255,.9)}
+#portal.l{left:0;background:linear-gradient(to right,rgba(0,243,255,.55),rgba(168,85,247,.18) 45%,transparent);border-left:3px solid var(--cyan);box-shadow:0 0 calc(18px + 40px*var(--i,0)) rgba(0,243,255,.9)}
+.card{position:absolute;left:0;top:0;z-index:1;touch-action:none;cursor:grab;border-radius:18px;padding:12px 14px 10px;background:linear-gradient(150deg,rgba(255,255,255,.1),rgba(255,255,255,.025)),rgba(12,15,38,.82);border:1.5px solid var(--c);box-shadow:0 0 16px color-mix(in srgb,var(--c) 45%,transparent),inset 0 0 18px color-mix(in srgb,var(--c) 10%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);will-change:transform}
+.card:active{cursor:grabbing}
+.card.ghost{pointer-events:none;z-index:20;box-shadow:0 0 30px var(--c)}
+.card.anim{transition:transform .45s cubic-bezier(.2,.9,.3,1)}
+.card.pop{animation:pop .7s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{0%{opacity:0;scale:.2;filter:brightness(3)}60%{opacity:1;scale:1.1}100%{scale:1;filter:none}}
+.ch{display:flex;align-items:center;gap:8px;margin-bottom:8px;color:var(--c);font-weight:700;font-size:13px}
+.ci{font-size:15px;direction:ltr}
+.cl{flex:1}
+.cx{background:none;border:0;color:var(--muted);font-size:14px;padding:2px 6px;cursor:pointer}
+.body{max-height:170px;overflow:hidden;line-height:1.8;font-size:15px;word-break:break-word;white-space:pre-wrap;-webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent)}
+.body.lnk{direction:ltr;text-align:left;color:#86efac}
+.body.code{font-family:'Fira Code',monospace;font-size:12.5px;direction:ltr;text-align:left;background:rgba(0,0,0,.4);border-radius:10px;padding:8px 10px;line-height:1.6}
+.kw{color:#c084fc}.st{color:#86efac}.nm{color:#fbbf24}.cm{color:#6b7599}
+.acts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.acts button{flex:1;min-width:58px;font:inherit;font-size:12.5px;font-weight:600;color:var(--text);background:rgba(255,255,255,.06);border:1px solid color-mix(in srgb,var(--c) 55%,transparent);border-radius:10px;padding:6px 4px;cursor:pointer}
+.acts button:active{background:color-mix(in srgb,var(--c) 30%,transparent)}
+#top{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;align-items:center;gap:8px;padding:max(8px,env(safe-area-inset-top)) 12px 8px;background:linear-gradient(rgba(7,9,19,.92),rgba(7,9,19,.55));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid rgba(0,243,255,.15);display:none}
+#top .brand{font-weight:900;font-size:15px;background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+#chip{flex:1;min-width:0;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:9px;height:9px;border-radius:50%;background:#555;flex:none}
+.dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}
+.dot.wait{background:var(--violet);box-shadow:0 0 10px var(--violet);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.ib{font:inherit;font-size:13px;font-weight:600;color:var(--text);background:var(--glass);border:1px solid rgba(0,243,255,.35);border-radius:12px;padding:7px 10px;cursor:pointer;white-space:nowrap}
+.ib:active{transform:scale(.95)}
+#fab{position:fixed;z-index:20;bottom:max(22px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;border:0;font-size:34px;line-height:1;color:#fff;cursor:pointer;display:none;background:linear-gradient(135deg,var(--cyan),var(--violet));box-shadow:0 0 28px rgba(0,243,255,.6),0 0 60px rgba(168,85,247,.45)}
+#fab:active{transform:translateX(-50%) scale(.92)}
+.screen{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));background:rgba(7,9,19,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);overflow-y:auto;touch-action:pan-y}
+.screen.on{display:flex}
+.box{width:100%;max-width:400px;text-align:center;margin:auto}
+h1{font-size:clamp(30px,9vw,42px);font-weight:900;background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px rgba(168,85,247,.5))}
+.brandline{color:var(--green);font-size:13px}
+.sub{color:var(--muted);margin:10px 0 22px;line-height:1.8;font-size:15px}
+.btn{display:block;width:100%;font:inherit;font-weight:700;font-size:17px;color:var(--text);background:var(--glass);border:1.5px solid var(--cyan);border-radius:16px;padding:14px;margin-top:14px;cursor:pointer;box-shadow:0 0 18px rgba(0,243,255,.25),inset 0 0 14px rgba(0,243,255,.08)}
+.btn:active{transform:scale(.97)}
+.btn small{display:block;font-weight:400;font-size:13px;color:var(--muted)}
+.btn.v{border-color:var(--violet);box-shadow:0 0 18px rgba(168,85,247,.35)}
+.btn.g{border-color:var(--green);box-shadow:0 0 18px rgba(16,185,129,.3)}
+.code{font-size:56px;font-weight:900;letter-spacing:14px;padding-inline-start:14px;color:var(--cyan);text-shadow:0 0 22px var(--cyan);direction:ltr}
+.label{color:var(--muted);font-size:14px;margin-top:14px}
+.row{display:flex;gap:8px;margin-top:8px}
+.chip{flex:1;font:inherit;font-weight:600;font-size:14px;color:var(--muted);background:var(--glass);border:1.5px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 4px;cursor:pointer}
+.chip.on{color:#fff;border-color:var(--c,var(--cyan));box-shadow:0 0 14px color-mix(in srgb,var(--c,var(--cyan)) 55%,transparent);background:color-mix(in srgb,var(--c,var(--cyan)) 18%,transparent)}
+input,textarea{width:100%;font:inherit;color:var(--text);background:rgba(10,12,32,.85);border:1.5px solid rgba(168,85,247,.6);border-radius:14px;padding:12px 14px;font-size:16px;outline:none;margin-top:10px;user-select:text;-webkit-user-select:text}
+textarea{min-height:150px;resize:none;line-height:1.7;direction:auto}
+input:focus,textarea:focus{border-color:var(--cyan);box-shadow:0 0 16px rgba(0,243,255,.35)}
+input.num{font-size:34px;letter-spacing:12px;font-weight:700;direction:ltr;text-align:center;border-color:rgba(0,243,255,.6)}
+.status{margin-top:14px;font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:center;justify-content:center}
+#sheet textarea.mono{font-family:'Fira Code',monospace;direction:ltr;text-align:left;font-size:14px}
+#toast{position:fixed;top:max(70px,calc(env(safe-area-inset-top) + 62px));left:50%;transform:translateX(-50%) translateY(-20px);opacity:0;z-index:60;background:rgba(16,185,129,.92);color:#fff;padding:10px 18px;border-radius:999px;transition:.3s;pointer-events:none;font-weight:600;font-size:14px;box-shadow:0 0 24px rgba(16,185,129,.6);max-width:92vw;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div id="portal" class="r"></div>
+<div id="hint">اضغط ＋ أو الصق نصاً لإنشاء بطاقة<br>ثم اسحبها واقذفها نحو الحافة المشتركة بين الجهازين</div>
+<div id="board"></div>
+<canvas id="fx"></canvas>
+
+<div id="top">
+  <span class="brand">Quantum Board</span>
+  <span id="chip"><i class="dot wait" id="cdot"></i><span id="ctxt"></span></span>
+  <button class="ib" id="bPaste" title="لصق سريع">📋 لصق</button>
+  <button class="ib" id="bTidy" title="ترتيب البطاقات">▦</button>
+  <button class="ib" id="bSwap" title="تبديل الأماكن">⇄</button>
+</div>
+<button id="fab" aria-label="بطاقة جديدة">＋</button>
+<div id="toast"></div>
+
+<section class="screen on" id="sRole">
+  <div class="box">
+    <h1>Quantum Board</h1>
+    <div class="brandline">AymanStack</div>
+    <p class="sub">مساحة العمل العابرة للشاشات<br>حوّل جهازين إلى سبورة واحدة ممتدة، وارمِ البطاقات من شاشة إلى أخرى</p>
+    <button class="btn" id="bHost">إنشاء غرفة<small>ينشئ هذا الجهاز كود الربط ويحدد مكانه</small></button>
+    <button class="btn v" id="bJoin">الانضمام إلى غرفة<small>أدخل الكود الظاهر على الجهاز الأول</small></button>
+  </div>
+</section>
+
+<section class="screen" id="sHost">
+  <div class="box">
+    <div class="label" style="margin-top:0">مكان هذا الجهاز</div>
+    <div class="row">
+      <button class="chip on" data-s="left">الشاشة اليسرى</button>
+      <button class="chip" data-s="right">الشاشة اليمنى</button>
+    </div>
+    <div class="label">كود الربط</div>
+    <div class="code" id="code">····</div>
+    <p class="sub" style="margin:6px 0 0">أدخله في الجهاز الآخر، وسيأخذ المكان المقابل تلقائياً</p>
+    <div class="status"><i class="dot wait" id="hdot"></i><span id="hst">جارٍ إنشاء الغرفة…</span></div>
+    <button class="btn g" id="bHostGo">ابدأ العمل</button>
+  </div>
+</section>
+
+<section class="screen" id="sJoin">
+  <div class="box">
+    <h1 style="font-size:30px">الانضمام</h1>
+    <p class="sub">أدخل كود الغرفة المكوّن من 4 أرقام</p>
+    <input id="room" class="num" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off">
+    <div class="status"><i class="dot" id="jdot"></i><span id="jst">بانتظار الكود</span></div>
+    <button class="btn" id="bConn">اتصال</button>
+  </div>
+</section>
+
+<section class="screen" id="sheet">
+  <div class="box">
+    <h1 style="font-size:26px" id="shTitle">بطاقة جديدة</h1>
+    <div class="row" id="shTypes"></div>
+    <textarea id="shText" placeholder="اكتب أو الصق المحتوى هنا…"></textarea>
+    <button class="btn" id="shPaste">📋 لصق من الحافظة</button>
+    <div class="row">
+      <button class="btn g" id="shSave" style="flex:2">إضافة البطاقة</button>
+      <button class="btn v" id="shCancel" style="flex:1">إلغاء</button>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const PREFIX='quantum-board-ayman-';
+const TYPES={text:{l:'نص',i:'📝',c:'#00f3ff'},code:{l:'كود',i:'</>',c:'#a855f7'},link:{l:'رابط',i:'🔗',c:'#10b981'},idea:{l:'فكرة / مهمة',i:'💡',c:'#fbbf24'}};
+const board=$('board'),portal=$('portal'),fx=$('fx'),fctx=fx.getContext('2d');
+let W=innerWidth,H=innerHeight,dpr=1;
+let side='left',dir=1,connected=false,rW=0,rH=0,peer=null,conn=null,isHost=false,roomCode='';
+let zTop=2,landed=0,pendingClip=null,pi=0;
+const cards=new Map(),ghosts=new Map(),fliers=[];
+let sparks=[],rings=[];
+const TOP=58;
+
+/* ---------- helpers ---------- */
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const opp=s=>s==='left'?'right':'left';
+const uid=()=>Math.random().toString(36).slice(2,10);
+const show=id=>document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
+let tt;function toast(s){const t=$('toast');t.textContent=s;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2600)}
+const send=o=>{if(conn&&conn.open)try{conn.send(o)}catch(e){}};
+function normUrl(s){s=(s||'').trim();if(!s||/\s/.test(s))return null;if(/^https?:\/\//i.test(s))return s;if(/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(s))return 'https://'+s;return null}
+function detect(t){
+  t=t.trim();if(normUrl(t))return 'link';
+  if(/[{};]|=>|\bfunction\b|\bdef\b|\bimport\b|<\/?[a-z][\w-]*>|^\s{2,}\S/m.test(t)&&/\n/.test(t)||/^\s*(const|let|var|def|class|import|function|#include|SELECT)\b/i.test(t))return 'code';
+  return 'text';
+}
+function codeNodes(src){
+  const f=document.createDocumentFragment();
+  const re=/(\/\/.*|#.*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)|\b(\d+\.?\d*)\b|\b(const|let|var|function|return|if|else|for|while|class|import|from|export|def|new|await|async|true|false|null|None|this|in|of|try|catch|throw)\b/g;
+  let last=0,m;
+  while((m=re.exec(src))){
+    if(m.index>last)f.append(src.slice(last,m.index));
+    f.append(el('span',m[1]?'cm':m[2]?'st':m[3]?'nm':'kw',m[0]));last=re.lastIndex;
+  }
+  f.append(src.slice(last));return f;
+}
+const cw=()=>Math.min(280,Math.round(W*.78));
+
+/* ---------- side / portal / chip ---------- */
+function setSide(s){side=s;dir=s==='left'?1:-1;portal.className=dir===1?'r':'l';updateChip()}
+function updateChip(){
+  const n=side==='left'?'الشاشة اليسرى':'الشاشة اليمنى';
+  $('cdot').className='dot '+(connected?'ok':'wait');
+  $('ctxt').textContent=connected?n+' · متصل':(isHost&&roomCode?'كود '+roomCode+' · ':'')+n+' · بانتظار الربط';
+}
+function clipboardFail(){}
+
+/* ---------- connection ---------- */
+$('bHost').onclick=()=>{isHost=true;show('sHost');startHost()};
+$('bJoin').onclick=()=>{isHost=false;show('sJoin');$('room').focus()};
+document.querySelectorAll('#sHost .chip').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#sHost .chip').forEach(x=>x.classList.toggle('on',x===b));
+  setSide(b.dataset.s);if(connected)send({t:'hi',w:W,h:H,hostSide:side});
+});
+function startHost(attempt=0){
+  roomCode=String(Math.floor(1000+Math.random()*9000));$('code').textContent=roomCode;
+  if(typeof Peer==='undefined'){$('hst').textContent='تعذّر تحميل PeerJS، تحقق من الإنترنت';return}
+  peer=new Peer(PREFIX+roomCode);
+  peer.on('open',()=>{$('hst').textContent='بانتظار الجهاز الآخر…';updateChip()});
+  peer.on('error',e=>{if(e.type==='unavailable-id'&&attempt<6){peer.destroy();startHost(attempt+1)}else $('hst').textContent='خطأ في الاتصال: '+e.type});
+  peer.on('connection',c=>{
+    if(conn&&conn.open){c.close();return}
+    bind(c);
+  });
+}
+$('bHostGo').onclick=enterBoard;
+$('bConn').onclick=joinRoom;
+$('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom()});
+function joinRoom(){
+  const code=$('room').value.trim();
+  if(!/^\d{4}$/.test(code)){$('jst').textContent='الكود يجب أن يكون 4 أرقام';return}
+  if(typeof Peer==='undefined'){$('jst').textContent='تعذّر تحميل PeerJS، تحقق من الإنترنت';return}
+  $('jdot').className='dot wait';$('jst').textContent='جارٍ الاتصال…';
+  if(peer)peer.destroy();
+  peer=new Peer();
+  peer.on('open',()=>bind(peer.connect(PREFIX+code,{reliable:true})));
+  peer.on('error',e=>{$('jdot').className='dot';$('jst').textContent=e.type==='peer-unavailable'?'الكود غير صحيح أو الغرفة غير موجودة':'خطأ في الاتصال: '+e.type});
+}
+function bind(c){
+  conn=c;
+  c.on('open',()=>{
+    connected=true;$('hdot').className='dot ok';$('hst').textContent='تم الربط بنجاح ✓';
+    send(isHost?{t:'hi',w:W,h:H,hostSide:side}:{t:'hi',w:W,h:H});
+    if(!isHost)enterBoard();
+    updateChip();toast('🔗 تم ربط الجهازين');
+  });
+  c.on('data',onData);
+  c.on('close',()=>{connected=false;ghosts.forEach(g=>g.el.remove());ghosts.clear();$('hdot').className='dot wait';$('hst').textContent='انقطع الاتصال';updateChip();toast('انقطع الاتصال بالجهاز الآخر')});
+}
+function enterBoard(){show('');$('top').style.display='flex';$('fab').style.display='block';updateChip();hintCheck()}
+$('bSwap').onclick=()=>{setSide(opp(side));send({t:'swap'});toast('تم تبديل الأماكن')};
+
+/* ---------- incoming messages ---------- */
+function onData(d){
+  switch(d.t){
+    case 'hi':rW=d.w;rH=d.h;if(d.hostSide)setSide(opp(d.hostSide));break;
+    case 'dim':rW=d.w;rH=d.h;break;
+    case 'swap':setSide(opp(side));break;
+    case 'gs':{
+      const old=ghosts.get(d.card.id);if(old)old.el.remove();
+      const e=buildCard(d.card,true,d.w);board.append(e);
+      ghosts.set(d.card.id,{el:e,w:d.w,h:e.offsetHeight,t:performance.now()});break;
+    }
+    case 'gp':{
+      const g=ghosts.get(d.id);if(!g)break;
+      g.t=performance.now();g.el.style.transform=`translate3d(${d.left}px,${d.cyr*H-g.h/2}px,0)`;break;
+    }
+    case 'gh':{const g=ghosts.get(d.id);if(g){g.el.remove();ghosts.delete(d.id)}break}
+    case 'own':receiveFlier(d);break;
+  }
+}
+function receiveFlier(d){
+  let g=ghosts.get(d.card.id),e;
+  if(g){e=g.el;ghosts.delete(d.card.id)}else{e=buildCard(d.card,true,d.w);board.append(e)}
+  const h=e.offsetHeight;
+  fliers.push({e,d:d.card,w:d.w,h,x:d.left,y:d.cyr*H-h/2,vx:d.vx,vy:d.vy,done:false});
+}
+
+/* ---------- card building ---------- */
+function buildCard(d,ghost,w){
+  const T=TYPES[d.type]||TYPES.text;
+  const e=el('div','card'+(ghost?' ghost':''));e.style.setProperty('--c',T.c);e.style.width=w+'px';e.dataset.id=d.id;
+  const h=el('div','ch');h.append(el('span','ci',T.i),el('span','cl',T.l));
+  if(!ghost){const x=el('button','cx','✕');x.dataset.a='del';h.append(x)}
+  const b=d.type==='code'?el('pre','body code'):el('div','body'+(normUrl(d.text)&&d.type==='link'?' lnk':''));
+  d.type==='code'?b.append(codeNodes(d.text)):b.textContent=d.text;
+  e.append(h,b);
+  if(!ghost){
+    const a=el('div','acts');
+    const mk=(k,t)=>{const x=el('button','',t);x.dataset.a=k;a.append(x)};
+    mk('copy','نسخ النص');if(normUrl(d.text))mk('open','فتح الرابط');mk('edit','تعديل');mk('throw','قذف ↗');
+    e.append(a);
+  }
+  return e;
+}
+function addCard(d,x,y,pop){
+  const e=buildCard(d,false,cw());board.append(e);
+  const o={d,el:e,x,y,vx:0,vy:0,w:e.offsetWidth,h:e.offsetHeight,drag:false,fly:false,sent:false,px:NaN,py:NaN};
+  e.style.zIndex=++zTop;cards.set(d.id,o);
+  if(pop){e.classList.add('pop');e.addEventListener('animationend',()=>e.classList.remove('pop'),{once:true})}
+  place(o);hintCheck();return o;
+}
+function place(o){if(o.px!==o.x||o.py!==o.y){o.el.style.transform=`translate3d(${o.x}px,${o.y}px,0)`;o.px=o.x;o.py=o.y}}
+const hintCheck=()=>$('hint').classList.toggle('off',cards.size>0||fliers.length>0);
+function createCard(type,text){
+  const w=cw();
+  const o=addCard({id:uid(),type,text},Math.max(8,(W-w)/2+(Math.random()-.5)*Math.min(80,W*.2)),TOP+20+Math.random()*Math.max(10,H*.25),true);
+  return o;
+}
+
+/* ---------- card actions ---------- */
+function copyText(s,quiet){
+  const fb=()=>{const t=el('textarea');t.value=s;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}t.remove();return ok};
+  return (navigator.clipboard?navigator.clipboard.writeText(s):Promise.reject()).then(()=>true,()=>fb());
+}
+board.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-a]');if(!b)return;
+  const c=b.closest('.card'),o=c&&cards.get(c.dataset.id);if(!o)return;
+  const a=b.dataset.a;
+  if(a==='copy')copyText(o.d.text).then(ok=>toast(ok?'📋 تم نسخ النص':'تعذّر النسخ'));
+  else if(a==='open'){const u=normUrl(o.d.text);if(u)window.open(u,'_blank','noopener')}
+  else if(a==='edit')openSheet(o);
+  else if(a==='del'){o.el.remove();cards.delete(o.d.id);if(o.sent)send({t:'gh',id:o.d.id});hintCheck()}
+  else if(a==='throw'){
+    if(!connected){toast('اربط الجهاز الآخر أولاً');return}
+    o.fly=true;o.vx=dir*16;o.vy=0;o.el.style.zIndex=++zTop;
+  }
+});
+document.addEventListener('pointerdown',()=>{
+  if(pendingClip!=null){const s=pendingClip;pendingClip=null;copyText(s).then(ok=>toast(ok?'📋 تم نسخ نص البطاقة المستلمة':'تعذّر النسخ'))}
+},true);
+
+/* ---------- dragging ---------- */
+const drags=new Map();
+board.addEventListener('pointerdown',e=>{
+  const c=e.target.closest('.card');if(!c||c.classList.contains('ghost')||e.target.closest('button'))return;
+  const o=cards.get(c.dataset.id);if(!o)return;
+  o.drag=true;o.fly=false;o.vx=o.vy=0;c.style.zIndex=++zTop;
+  drags.set(e.pointerId,{o,dx:e.clientX-o.x,dy:e.clientY-o.y});
+  c.setPointerCapture(e.pointerId);
+});
+board.addEventListener('pointermove',e=>{
+  const d=drags.get(e.pointerId);if(!d)return;
+  const o=d.o,nx=e.clientX-d.dx,ny=e.clientY-d.dy;
+  o.vx=o.vx*.5+(nx-o.x)*.5;o.vy=o.vy*.5+(ny-o.y)*.5;o.x=nx;o.y=ny;clampPos(o,true);
+});
+function endDrag(e){
+  const d=drags.get(e.pointerId);if(!d)return;drags.delete(e.pointerId);
+  const o=d.o;o.drag=false;
+  if(connected){
+    const overlap=dir===1?(o.x+o.w-W)/o.w:-o.x/o.w,toward=o.vx*dir;
+    if(toward>7||overlap>.35){o.fly=true;o.vx=dir*Math.max(toward,14)}
+  }
+}
+board.addEventListener('pointerup',endDrag);board.addEventListener('pointercancel',endDrag);
+function clampPos(o,keepV){
+  const minX=connected&&dir===-1?-Infinity:0,maxX=connected&&dir===1?Infinity:W-o.w;
+  if(o.x<minX){o.x=minX;if(!keepV)o.vx=Math.abs(o.vx)*.5}
+  if(o.x>maxX){o.x=maxX;if(!keepV)o.vx=-Math.abs(o.vx)*.5}
+  if(o.y<TOP){o.y=TOP;if(!keepV)o.vy=Math.abs(o.vy)*.5}
+  if(o.y>H-o.h){o.y=Math.max(TOP,H-o.h);if(!keepV)o.vy=-Math.abs(o.vy)*.5}
+}
+
+/* ---------- sheet (create / edit) ---------- */
+let shType='text',shEdit=null;
+(function(){const r=$('shTypes');for(const k in TYPES){const b=el('button','chip',TYPES[k].l);b.dataset.k=k;b.style.setProperty('--c',TYPES[k].c);b.onclick=()=>setShType(k);r.append(b)}})();
+function setShType(k){shType=k;document.querySelectorAll('#shTypes .chip').forEach(b=>b.classList.toggle('on',b.dataset.k===k));$('shText').classList.toggle('mono',k==='code')}
+function openSheet(o){
+  shEdit=o||null;$('shTitle').textContent=o?'تعديل البطاقة':'بطاقة جديدة';$('shSave').textContent=o?'حفظ التعديل':'إضافة البطاقة';
+  $('shText').value=o?o.d.text:'';setShType(o?o.d.type:'text');show('sheet');setTimeout(()=>$('shText').focus(),50);
+}
+$('fab').onclick=()=>openSheet();
+$('shCancel').onclick=()=>show('');
+$('shPaste').onclick=async()=>{
+  try{const t=await navigator.clipboard.readText();if(!t.trim()){toast('الحافظة فارغة');return}$('shText').value=t;setShType(detect(t))}
+  catch(e){toast('اسمح بالوصول للحافظة أو الصق النص يدوياً داخل الحقل')}
+};
+$('shText').addEventListener('input',()=>{});
+$('shSave').onclick=()=>{
+  const t=$('shText').value.trim();if(!t){toast('اكتب محتوى البطاقة أولاً');return}
+  if(shEdit){
+    const o=shEdit;o.d.text=t;o.d.type=shType;
+    const e2=buildCard(o.d,false,o.w);o.el.replaceWith(e2);e2.style.zIndex=++zTop;o.el=e2;o.h=e2.offsetHeight;o.px=NaN;place(o);
+  }else createCard(shType,t);
+  show('');
+};
+$('bPaste').onclick=async()=>{
+  try{const t=await navigator.clipboard.readText();if(!t.trim()){toast('الحافظة فارغة');return}createCard(detect(t),t.trim());toast('📋 تمت إضافة بطاقة من الحافظة')}
+  catch(e){openSheet();toast('الصق النص داخل الحقل')}
+};
+document.addEventListener('paste',e=>{
+  if(!$('top').style.display||$('top').style.display==='none'||/^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName))return;
+  const t=(e.clipboardData&&e.clipboardData.getData('text')||'').trim();
+  if(t){createCard(detect(t),t);toast('📋 تمت إضافة بطاقة من الحافظة')}
+});
+
+/* ---------- tidy ---------- */
+$('bTidy').onclick=()=>{
+  const list=[...cards.values()].sort((a,b)=>a.y-b.y);if(!list.length)return;
+  const w=list[0].w,gap=12;let col=0,y=TOP+10;const pos=[];
+  for(const o of list){if(y+o.h>H-80&&y>TOP+10){col++;y=TOP+10}pos.push([o,col,y]);y+=o.h+gap}
+  const cols=col+1,total=cols*w+(cols-1)*gap,x0=Math.max(8,(W-total)/2);
+  for(const [o,c,yy] of pos){o.el.classList.add('anim');o.x=x0+c*(w+gap);o.y=yy;o.vx=o.vy=0;o.fly=false;setTimeout(()=>o.el.classList.remove('anim'),520)}
+};
+
+/* ---------- sparkles ---------- */
+function burst(cx,cy,color){
+  for(let i=0;i<170;i++){const a=Math.random()*6.283,s=Math.sqrt(Math.random())*Math.min(W,H)*.02+1;
+    sparks.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:55+Math.random()*50,max:105,size:1+Math.random()*2.8,c:i%4===0?'#ffffff':color})}
+  rings.push({x:cx,y:cy,r:20,a:1,c:color},{x:cx,y:cy,r:8,a:1,c:'#ffffff'});
+}
+function drawFX(){
+  fctx.clearRect(0,0,W,H);if(!sparks.length&&!rings.length)return;
+  fctx.save();fctx.globalCompositeOperation='lighter';
+  for(const r of rings){fctx.globalAlpha=r.a;fctx.strokeStyle=r.c;fctx.lineWidth=3*r.a+1;fctx.beginPath();fctx.arc(r.x,r.y,r.r,0,7);fctx.stroke();r.r+=Math.max(W,H)*.012;r.a-=.03}
+  rings=rings.filter(r=>r.a>0);
+  for(const p of sparks){p.x+=p.vx;p.y+=p.vy;p.vx*=.98;p.vy=p.vy*.98+.02;p.life--;fctx.globalAlpha=Math.max(0,p.life/p.max);fctx.fillStyle=p.c;fctx.shadowColor=p.c;fctx.shadowBlur=8;fctx.beginPath();fctx.arc(p.x,p.y,p.size,0,7);fctx.fill()}
+  sparks=sparks.filter(p=>p.life>0);fctx.restore();
+}
+
+/* ---------- arrival: burst, re-form, auto copy ---------- */
+function arrive(f){
+  f.done=true;const T=TYPES[f.d.type]||TYPES.text;
+  burst(f.x+f.w/2,f.y+f.h/2,T.c);
+  f.e.style.transition='opacity .25s,transform .25s';f.e.style.opacity='0';f.e.style.transform+=' scale(.3)';
+  if(navigator.vibrate)navigator.vibrate(30);
+  setTimeout(()=>{
+    f.e.remove();
+    const k=landed++%5,o=addCard(f.d,Math.max(8,(W-f.w)/2+k*22-44),Math.min(H-f.h,Math.max(TOP,(H-f.h)/2+k*22-44)),true);
+    o.el.style.zIndex=++zTop;
+    if(navigator.vibrate)navigator.vibrate([25,40,25]);
+    (navigator.clipboard?navigator.clipboard.writeText(f.d.text):Promise.reject()).then(
+      ()=>toast('⚡ تم استلام البطاقة ونسخ النص تلقائياً!'),
+      ()=>{pendingClip=f.d.text;toast('⚡ وصلت البطاقة — المس الشاشة لنسخ النص')});
+  },520);
+}
+
+/* ---------- main loop ---------- */
+let last=performance.now();
+function loop(now){
+  const k=Math.min(2.5,(now-last)/16.667);last=now;
+  let inten=0;
+  cards.forEach(o=>{
+    if(!o.drag){
+      if(Math.abs(o.vx)+Math.abs(o.vy)>.05||o.fly){
+        o.x+=o.vx*k;o.y+=o.vy*k;
+        if(o.fly){o.vx=dir*Math.max(Math.abs(o.vx),14);o.vy*=Math.pow(.97,k)}
+        else{o.vx*=Math.pow(.93,k);o.vy*=Math.pow(.93,k)}
+        clampPos(o);if(!connected)o.fly=false;
+      }
+      // card hanging over the portal edge without being thrown: ease back inside
+      if(connected&&!o.fly){
+        const ov=dir===1?o.x+o.w-W:-o.x;
+        if(ov>0){const tx=dir===1?W-o.w:0;o.x+=(tx-o.x)*.15*k}
+      }
+    }
+    // crossing logic
+    if(connected){
+      const over=dir===1?o.x+o.w>W:o.x<0;
+      const left=dir===1?o.x-W:rW+o.x,cyr=(o.y+o.h/2)/H;
+      if(over){
+        if(!o.sent){send({t:'gs',card:o.d,w:o.w});o.sent=true}
+        send({t:'gp',id:o.d.id,left,cyr});
+        const out=dir===1?o.x>=W:o.x+o.w<=0;
+        if(out&&!o.drag){
+          send({t:'own',card:o.d,w:o.w,left,cyr,vx:o.vx,vy:o.vy});
+          o.el.remove();cards.delete(o.d.id);toast('🚀 انطلقت البطاقة إلى الشاشة الأخرى');hintCheck();return;
+        }
+      }else if(o.sent){send({t:'gh',id:o.d.id});o.sent=false}
+      if(o.drag||o.fly||over){const dd=Math.max(0,dir===1?W-(o.x+o.w):o.x);inten=Math.max(inten,1-dd/140)}
+    }
+    place(o);
+  });
+  const nowT=performance.now();
+  ghosts.forEach((g,id)=>{inten=1;if(nowT-g.t>700){g.el.remove();ghosts.delete(id)}});
+  for(let i=fliers.length-1;i>=0;i--){
+    const f=fliers[i];inten=1;
+    if(!f.done){
+      const cx=f.x+f.w/2,cy=f.y+f.h/2;
+      f.x+=(W/2-cx)*.05*k+f.vx*.5*k;f.y+=(H/2-cy)*.05*k+f.vy*.5*k;f.vx*=Math.pow(.94,k);f.vy*=Math.pow(.94,k);
+      f.e.style.transform=`translate3d(${f.x}px,${f.y}px,0)`;
+      if(Math.abs(W/2-(f.x+f.w/2))<5&&Math.abs(H/2-(f.y+f.h/2))<5)arrive(f);
+    }else if(!f.e.isConnected)fliers.splice(i,1);
+  }
+  pi+=(inten-pi)*.2;
+  portal.style.setProperty('--i',pi.toFixed(3));portal.style.opacity=connected?(.22+.78*pi).toFixed(3):0;
+  drawFX();
+  requestAnimationFrame(loop);
+}
+function resize(){
+  dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;fx.width=W*dpr;fx.height=H*dpr;fctx.setTransform(dpr,0,0,dpr,0,0);
+  cards.forEach(o=>clampPos(o,false));send({t:'dim',w:W,h:H});
+}
+addEventListener('resize',resize);resize();setSide('left');
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
