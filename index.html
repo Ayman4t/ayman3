@@ -146,6 +146,18 @@ input.num{font-size:34px;letter-spacing:12px;font-weight:700;direction:ltr;text-
 (()=>{
 const $=id=>document.getElementById(id);
 const PREFIX='quantum-board-ayman-';
+/* ---- Internet-wide connectivity (STUN + TURN relay) ---- */
+const METERED_APP='',METERED_KEY='';   // optional: free account at metered.ca -> more reliable TURN
+let ICE=[
+ {urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.relay.metered.ca:80'},
+ {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+ {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+ {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+ {urls:'turns:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'}
+];
+const PEER_OPTS=()=>({debug:0,config:{iceServers:ICE,iceCandidatePoolSize:4}});
+if(METERED_APP&&METERED_KEY)fetch('https://'+METERED_APP+'.metered.live/api/v1/turn/credentials?apiKey='+METERED_KEY).then(r=>r.json()).then(j=>{if(Array.isArray(j)&&j.length)ICE=j.concat(ICE)}).catch(()=>{});
+
 const TYPES={text:{l:'نص',i:'📝',c:'#00f3ff'},code:{l:'كود',i:'</>',c:'#a855f7'},link:{l:'رابط',i:'🔗',c:'#10b981'},idea:{l:'فكرة / مهمة',i:'💡',c:'#fbbf24'}};
 const board=$('board'),portal=$('portal'),fx=$('fx'),fctx=fx.getContext('2d');
 let W=innerWidth,H=innerHeight,dpr=1;
@@ -199,7 +211,7 @@ document.querySelectorAll('#sHost .chip').forEach(b=>b.onclick=()=>{
 function startHost(attempt=0){
   roomCode=String(Math.floor(1000+Math.random()*9000));$('code').textContent=roomCode;
   if(typeof Peer==='undefined'){$('hst').textContent='تعذّر تحميل PeerJS، تحقق من الإنترنت';return}
-  peer=new Peer(PREFIX+roomCode);
+  peer=new Peer(PREFIX+roomCode,PEER_OPTS());
   peer.on('open',()=>{$('hst').textContent='بانتظار الجهاز الآخر…';updateChip()});
   peer.on('error',e=>{if(e.type==='unavailable-id'&&attempt<6){peer.destroy();startHost(attempt+1)}else $('hst').textContent='خطأ في الاتصال: '+e.type});
   peer.on('connection',c=>{
@@ -214,9 +226,9 @@ function joinRoom(){
   const code=$('room').value.trim();
   if(!/^\d{4}$/.test(code)){$('jst').textContent='الكود يجب أن يكون 4 أرقام';return}
   if(typeof Peer==='undefined'){$('jst').textContent='تعذّر تحميل PeerJS، تحقق من الإنترنت';return}
-  $('jdot').className='dot wait';$('jst').textContent='جارٍ الاتصال…';
+  $('jdot').className='dot wait';$('jst').textContent='جارٍ الاتصال…';setTimeout(()=>{if(!connected){$('jst').textContent='تعذّر الاتصال. تحقق من الكود وجرّب مرة أخرى، وأوقف الـ VPN إن وُجد';$('jdot').className='dot'}},25000);
   if(peer)peer.destroy();
-  peer=new Peer();
+  peer=new Peer(undefined,PEER_OPTS());
   peer.on('open',()=>bind(peer.connect(PREFIX+code,{reliable:true})));
   peer.on('error',e=>{$('jdot').className='dot';$('jst').textContent=e.type==='peer-unavailable'?'الكود غير صحيح أو الغرفة غير موجودة':'خطأ في الاتصال: '+e.type});
 }
